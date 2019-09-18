@@ -1,0 +1,32 @@
+{
+  "name": "redbox-hook-terraform",
+  "version": "1.0.0",
+  "description": "A Terraform provisioner for ReDBox",
+  "main": "index.js",
+  "sails": {
+    "isHook": true,
+    "hookName": "redbox-hook-terraform"
+  },
+  "scripts": {
+    "test": "NODE_ENV=test node_modules/.bin/mocha",
+    "installHook": "docker run -v $(pwd):/opt/sailshook qcifengineering/redbox-portal /bin/bash -c 'cd /opt/redbox-portal;yarn add  \"file:/opt/sailshook\"'; docker commit $(docker ps -lq) redboxportalwithhook",
+    "runDev": "docker-compose -f support/development/docker-compose.yml up",
+    "runAngularDev": "docker-compose -f support/development/docker-compose.yml up | source support/development/monitorSailsWorkingDir.sh sailsWorkingDir"
+  },
+  "keywords": [
+    "sails",
+    "hook",
+    "redbox"
+  ],
+  "author": "",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "mocha": "^5.1.1",
+    "sails": "^1.0.2",
+    "supertest": "^3.0.0"
+  },
+  "dependencies": {
+    "fs-extra": "^7.0.1",
+    "lodash": "^4.17.10"
+  }
+}
