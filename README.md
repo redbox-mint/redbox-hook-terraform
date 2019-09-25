@@ -1,4 +1,4 @@
-## ReDBox Provisioner: Terraform
+# ReDBox Provisioner: Terraform
 
 A Terraform provisioner for ReDBox.
 
@@ -7,12 +7,24 @@ This hook allows ReDBox to manage and execute Terraform manifests from ReDBox.
 Responsibilities:
 
 - Launch and parse Terraform return codes
-- TODO: Manage Terraform modules and corresponding variables
-- TODO: Capture and manage Terraform output
+- Manage Terraform modules and corresponding variables
+- Capture and manage Terraform output
 
-## api
+On it's own, this plugin doesn't come with any cloud-specific provisioners. You will need to install a cloud specific provisioner, as part of this Terraform-specific platform.
 
-Main API of your Hook can be stored in controllers and services
+## Installation
+
+To add this plugin to ReDBox portal:
+
+- Clone this repo
+- On your ReDBox portal source directory, run: `yarn add file:<local-path-to-repo-clone>`
+
+Start ReDBox Portal as usual.
+
+If you are looking to develop this tool, see further information below.
+
+## API
+Your API files are in `typescript/api/**`.  
 
 - controllers
 - services
@@ -82,7 +94,12 @@ For more information on testing your hook go to : https://sailsjs.com/documentat
 
 ## Development in redbox-portal
 
-A docker-compose.yml file is present in support/development and is setup to run the full ReDBox stack and install the hook. To run the stack there is a ReDBox Sails Hook Run Utility in the root of the project
+Requirements:
+- Clone redbox-portal
+- Create a symbolic link from `<root dir>/api/core --> <redbox-portal-source>/api/core`
+- Build the core files
+
+A docker-compose.yml file is present in support/development and is setup to run the full ReDBox stack and install the hook. To run the stack there is a ReDBox Sails Hook Run Utility in the root of the project.
 
 Usage
 ```
@@ -92,4 +109,4 @@ Usage: ./runForDev.sh [-a|--(no-)angular] [-h|--help]
 	-h,--help: Prints help
 ```
 
-Note: The first time the stack runs it may take some time as yarn initialises the hook within ReDBox Portal. All subsequent runs should be faster
+Note: The first time the stack runs it may take some time as yarn initialises the hook within ReDBox Portal. All subsequent runs should be faster.

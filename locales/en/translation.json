@@ -1,4 +1,0 @@
-{
-  "@hook-tf-gcp-omeka-title": "Google Cloud - Omeka",
-  "@hook-tf-gcp-omeka-description": "Provisions an Omeka instance in a VM within your institution's Google Cloud."
-}

@@ -26,7 +26,10 @@
     "supertest": "^3.0.0"
   },
   "dependencies": {
+    "extract-zip": "1.6.7",
     "fs-extra": "^7.0.1",
-    "lodash": "^4.17.10"
+    "js-terraform": "0.0.1",
+    "lodash": "^4.17.10",
+    "request": "2.88.0"
   }
 }

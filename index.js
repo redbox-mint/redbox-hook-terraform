@@ -5,17 +5,11 @@ Terraform Provisioner Hook
 const _ = require('lodash');
 const fs = require('fs-extra');
 const { resolve } = require('path');
+const { basename, dirname } = require('path');
+const request = require('request');
+const extract = require('extract-zip');
 
-async function getFiles(dir) {
-  const subdirs = await fs.readdir(dir);
-  const files = await Promise.all(subdirs.map(async (subdir) => {
-    const res = resolve(dir, subdir);
-    return (await fs.stat(res)).isDirectory() ? getFiles(res) : res;
-  }));
-  return files.reduce((a, f) => a.concat(f), []);
-}
-
-var walkSync = function(dir, filelist) {
+const walkSync = function(dir, filelist) {
   var files = fs.readdirSync(dir);
   filelist = filelist || [];
   files.forEach(function(file) {
@@ -29,34 +23,61 @@ var walkSync = function(dir, filelist) {
   return filelist;
 };
 
+const installProduct = function(product, tf_path, tf_install_url, tf_zip_path, cb) {
+  const download_path = tf_zip_path ? tf_zip_path : tf_path;
+  sails.log.verbose("Checking if " + product + " is installed.");
+  if (!fs.pathExistsSync(tf_path)) {
+    sails.log.verbose("Downloading " + product + " from: " + tf_install_url);
+    request.get(tf_install_url)
+    .on('end', ()=>{
+      if (download_path.indexOf(".zip") != -1) {
+        sails.log.verbose("Downloaded "+ product +" to: " + tf_zip_path + ", extracting to: "+ dirname(tf_path));
+        extract(tf_zip_path, {dir: dirname(tf_path)}, (error) => {
+          if (error) {
+            sails.log.error("Error extracting: " + tf_zip_path);
+            sails.log.error(error);
+            return cb(false);
+          } else {
+            fs.chmodSync(tf_path, 0o755);
+            sails.log.verbose("Extracted "+ product + " to: " + tf_path);
+            return cb(true);
+          }
+        });
+      } else {
+        fs.chmodSync(tf_path, 0o755);
+        sails.log.verbose("Downloaded "+ product + " to: " + tf_path);
+        return cb(true);
+      }
+    })
+    .pipe(fs.createWriteStream(download_path));
+  } else {
+    sails.log.verbose(product + " Already installed.");
+    return cb(true);
+  }
+};
+
 const hook_root_dir = "node_modules/redbox-hook-terraform"
 
 module.exports = function (sails) {
   return {
     initialize: function (cb) {
       // Do Some initialisation tasks
-      // This can be for example: copy files or images to the redbox-portal front end
-      return cb();
-    },
-    //If each route middleware do not exist sails.lift will fail during hook.load()
-    routes: {
-      before: {},
-      after: {
-      }
-    },
-    configure: function () {
       sails.log.info("Terraform Provisioner::Configuring...");
       // read custom configuration and merge with sails.config
       const config_dirs = [hook_root_dir + "/form-config", hook_root_dir + "/config"];
       _.each(config_dirs, (config_dir) => {
         if (fs.pathExistsSync(config_dir)) {
-          let files = [];
-          files = walkSync(config_dir, files);
+          const files = walkSync(config_dir, []);
           sails.log.info("Terraform Provisioner::Processing:");
           sails.log.info(files);
+          const concatArrsFn = function (objValue, srcValue, key) {
+            if (_.isArray(objValue)) {
+              return objValue.concat(srcValue);
+            }
+          };
           _.each(files, (file_path) => {
             const config_file = require(file_path);
-            _.merge(sails.config, config_file);
+            _.mergeWith(sails.config, config_file, concatArrsFn);
           });
         } else {
           sails.log.info("Terraform Provisioner::Skipping, directory not found:" + config_dir);
@@ -86,6 +107,65 @@ module.exports = function (sails) {
       if(fs.pathExistsSync(hook_root_dir + "/views/")) {
         fs.copySync(hook_root_dir + "/views/","views/");
       }
+
+      // Load up all the services ...
+      const servicesDir = resolve(hook_root_dir, "api/services");
+      if (fs.pathExistsSync(servicesDir)) {
+        const files = walkSync(servicesDir, []);
+        _.each(files, (file_path) => {
+          const service = require(file_path);
+          const serviceName = basename(file_path, '.js')
+          sails.services[serviceName] = service;
+        });
+      }
+      // Load up all controllers ...
+      const controllersDir = resolve(hook_root_dir, "api/controllers");
+      if (fs.pathExistsSync(controllersDir)) {
+        const files = walkSync(controllersDir, []);
+        _.each(files, (file_path) => {
+          const controller = require(file_path);
+          sails.controllers[basename(file_path, '.js')] = controller;
+        });
+      }
+      // install terraform and other tools...
+      const tf_file_name = "terraform_" + sails.config.terraform.version + "_" + sails.config.terraform.arch + ".zip";
+      const tf_install_url = sails.config.terraform.install_base_url + sails.config.terraform.version + "/" + tf_file_name;
+      const tf_tmp = sails.config.terraform.tmp;
+      const tf_path = sails.config.terraform.path;
+      const tf_zip_path = tf_tmp + tf_file_name;
+
+      installProduct("Terraform", tf_path, tf_install_url, tf_zip_path, (status) => {
+        if (status) {
+          if (sails.config.terraform.use_terragrunt) {
+            const tg_file_name = "terragrunt_" + sails.config.terraform.arch;
+            const tg_install_url = sails.config.terraform.terragrunt.install_base_url + sails.config.terraform.terragrunt.version + "/" + tg_file_name;
+            const tg_path = sails.config.terraform.terragrunt.path;
+            const tg_zip_path = tf_tmp + tg_file_name;
+            installProduct("Terragrunt", tg_path, tg_install_url, null, (status) => {
+              if (status) {
+                sails.log.info("Terraform Provisioner::Init ok.");
+                return cb();
+              } else {
+                sails.log.info("Terraform Provisioner::Init failed.");
+              }
+            });
+          } else {
+            sails.log.info("Terraform Provisioner::Init ok.");
+            return cb();
+          }
+        } else {
+          sails.log.info("Terraform Provisioner::Init failed.");
+        }
+      });
+    },
+    //If each route middleware do not exist sails.lift will fail during hook.load()
+    routes: {
+      before: {},
+      after: {
+      }
+    },
+    configure: function () {
+
     }
   }
 };
