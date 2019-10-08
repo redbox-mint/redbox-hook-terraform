@@ -1,3 +1,5 @@
 sailsWorkingDir
 .terraform
 *.tfstate*
+.terragrunt-cache
+tmp

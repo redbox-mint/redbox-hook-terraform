@@ -136,23 +136,18 @@ module.exports = function (sails) {
 
       installProduct("Terraform", tf_path, tf_install_url, tf_zip_path, (status) => {
         if (status) {
-          if (sails.config.terraform.use_terragrunt) {
-            const tg_file_name = "terragrunt_" + sails.config.terraform.arch;
-            const tg_install_url = sails.config.terraform.terragrunt.install_base_url + sails.config.terraform.terragrunt.version + "/" + tg_file_name;
-            const tg_path = sails.config.terraform.terragrunt.path;
-            const tg_zip_path = tf_tmp + tg_file_name;
-            installProduct("Terragrunt", tg_path, tg_install_url, null, (status) => {
-              if (status) {
-                sails.log.info("Terraform Provisioner::Init ok.");
-                return cb();
-              } else {
-                sails.log.info("Terraform Provisioner::Init failed.");
-              }
-            });
-          } else {
-            sails.log.info("Terraform Provisioner::Init ok.");
-            return cb();
-          }
+          const tg_file_name = "terragrunt_" + sails.config.terraform.arch;
+          const tg_install_url = sails.config.terraform.terragrunt.install_base_url + sails.config.terraform.terragrunt.version + "/" + tg_file_name;
+          const tg_path = sails.config.terraform.terragrunt.path;
+          const tg_zip_path = tf_tmp + tg_file_name;
+          installProduct("Terragrunt", tg_path, tg_install_url, null, (status) => {
+            if (status) {
+              sails.log.info("Terraform Provisioner::Init ok.");
+              return cb();
+            } else {
+              sails.log.info("Terraform Provisioner::Init failed.");
+            }
+          });
         } else {
           sails.log.info("Terraform Provisioner::Init failed.");
         }
