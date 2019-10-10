@@ -1,11 +1,15 @@
 {
-  "name": "redbox-hook-terraform",
+  "name": "@researchdatabox/redbox-hook-terraform",
   "version": "1.0.0",
   "description": "A Terraform provisioner for ReDBox",
   "main": "index.js",
   "sails": {
     "isHook": true,
     "hookName": "redbox-hook-terraform"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:redbox-mint/redbox-hook-terraform.git"
   },
   "scripts": {
     "test": "NODE_ENV=test node_modules/.bin/mocha",
@@ -16,7 +20,10 @@
   "keywords": [
     "sails",
     "hook",
-    "redbox"
+    "redbox",
+    "redbox research",
+    "terraform",
+    "redbox provisioner"
   ],
   "author": "",
   "license": "GPL-3.0",
@@ -31,5 +38,8 @@
     "js-terraform": "0.0.1",
     "lodash": "^4.17.10",
     "request": "2.88.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
