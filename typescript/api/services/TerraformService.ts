@@ -24,7 +24,7 @@ import { Terraform, Terragrunt } from 'js-terraform';
 import fs = require('fs-extra');
 declare var sails: Sails;
 declare var _;
-declare var RecordsService, TranslationService;
+declare var RecordsService, TranslationService, WorkflowStepsService;
 
 export module Services {
   /**
@@ -132,7 +132,12 @@ export module Services {
           return RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp);
         })
         .flatMap(() => {
-          // finally, we update the metadata with the earlier output
+          // get the next step after provisioned
+          return WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState);
+        })
+        .flatMap((wfStep) => {
+          RecordsService.updateWorkflowStep(record, wfStep);
+          // we update the metadata with the earlier output
           return RecordsService.updateMeta(null, oid, record, null, false, false);
         })
         .flatMap(() => {

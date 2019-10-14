@@ -76,6 +76,10 @@ var Services;
                     return RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp);
                 })
                     .flatMap(() => {
+                    return WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState);
+                })
+                    .flatMap((wfStep) => {
+                    RecordsService.updateWorkflowStep(record, wfStep);
                     return RecordsService.updateMeta(null, oid, record, null, false, false);
                 })
                     .flatMap(() => {
