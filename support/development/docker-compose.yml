@@ -7,10 +7,10 @@ services:
     ports:
        - "1500:1500"
     volumes:
-       - "../../:/opt/redbox-portal/node_modules/redbox-hook-terraform"
+       - "../../:/opt/redbox-portal/node_modules/@researchdatabox/redbox-hook-terraform"
        - "./package-gcp.json:/opt/redbox-portal/package.json"
        # If you're not developing redbox-hook-terraform-gcp, comment out the line below
-       - "../../../redbox-hook-terraform-gcp:/opt/redbox-portal/node_modules/redbox-hook-terraform-gcp"
+       - "../../../redbox-hook-terraform-gcp:/opt/redbox-portal/node_modules/@researchdatabox/redbox-hook-terraform-gcp"
        - "../../sailsWorkingDir/tmp:/opt/redbox-portal/.tmp"
        # If you're not interested in making changes to the core while developing this plugin, comment out below
        - "../../../redbox-portal/api:/opt/redbox-portal/api"
@@ -25,7 +25,7 @@ services:
       - sails_record__baseUrl__mint=http://demo.redboxresearchdata.com.au/mint
     # Put your sensitive stuff in this environment variable file
     env_file:
-      - ../../tmp/gcp.env
+      - ../../../temp/gcp.env
     networks:
      main:
        aliases:

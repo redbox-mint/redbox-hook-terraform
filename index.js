@@ -56,7 +56,7 @@ const installProduct = function(product, tf_path, tf_install_url, tf_zip_path, c
   }
 };
 
-const hook_root_dir = "node_modules/redbox-hook-terraform"
+const hook_root_dir = "node_modules/@researchdatabox/redbox-hook-terraform"
 
 module.exports = function (sails) {
   return {
