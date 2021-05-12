@@ -1,6 +1,6 @@
 {
   "name": "@researchdatabox/redbox-hook-terraform",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "description": "A Terraform provisioner for ReDBox",
   "main": "index.js",
   "sails": {
@@ -30,14 +30,20 @@
   "devDependencies": {
     "mocha": "^5.1.1",
     "sails": "^1.0.2",
-    "supertest": "^3.0.0"
+    "supertest": "^3.0.0",
+    "typescript": "^4.0.7"
   },
   "dependencies": {
+    "@types/node": "^15.0.2",
     "extract-zip": "1.6.7",
     "fs-extra": "^7.0.1",
     "js-terraform": "0.0.1",
-    "lodash": "^4.17.10",
-    "request": "2.88.0"
+    "lodash": "^4.17.21",
+    "path-exists": "^4.0.0",
+    "request": "2.88.0",
+    "rxjs": "^6.6.2",
+    "rxjs-compat": "^6.6.7",
+    "stream": "0.0.2"
   },
   "publishConfig": {
     "access": "public"

@@ -93,7 +93,7 @@ export module Services {
       let tg_dir = null;
       if (options.action == "create") {
         // associate the workspace in the DMP record: workspaces field
-        obs.push(RecordsService.getMeta(record.metadata.rdmpOid)
+        obs.push(Observable.of(RecordsService.getMeta(record.metadata.rdmpOid))
         .flatMap((rdmpData:any) => {
           rdmp = rdmpData;
           sails.log.verbose(`Got RDMP data:`);
@@ -107,7 +107,7 @@ export module Services {
             location: { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null}
           });
           // Update the DMP...
-          return RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData);
+          return Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
         })
         .flatMap(() => {
           return this.prepareTargetDir(oid, record, options, recType);
@@ -129,7 +129,7 @@ export module Services {
           const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid });
           workspaceEntry.location = location;
           record.metadata.location = location;
-          return RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp);
+          return Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
         })
         .flatMap(() => {
           // get the next step after provisioned
@@ -138,7 +138,7 @@ export module Services {
         .flatMap((wfStep) => {
           RecordsService.updateWorkflowStep(record, wfStep);
           // we update the metadata with the earlier output
-          return RecordsService.updateMeta(null, oid, record, null, false, false);
+          return Observable.of(RecordsService.updateMeta(null, oid, record, null, false, false));
         })
         .flatMap(() => {
           sails.log.verbose(`Provision completed: ${tg_dir}`);
@@ -161,7 +161,8 @@ export module Services {
         sails.log.verbose(`${this.tf_log_header} On create, applying using template from: ${templateDir}`);
         const pathExistsNodeBind = Observable.bindNodeCallback(fs.pathExists);
         return pathExistsNodeBind(templateDir)
-        .flatMap((pathExists:boolean) => {
+        .flatMap((pathExists) => {
+          sails.log.debug(`PathExists is: ${pathExists}`)
           if (pathExists) {
             terragrunt_target_dir = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/${recType}-${oid}/`;
             terragrunt_env_file = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/terragrunt.hcl`;
@@ -171,7 +172,8 @@ export module Services {
           sails.log.error(`${this.tf_log_header} Template Path doesn't exist: ${templateDir}`);
           return Observable.throw(new Error(`Template Path doesn't exist: ${templateDir}`))
         })
-        .flatMap((pathExists:boolean) => {
+        .flatMap((pathExists) => {
+          sails.log.debug(`PathExists is: ${pathExists}`)
           if (!pathExists) {
             sails.log.verbose(`${this.tf_log_header} Target doesn't exist, creating: ${terragrunt_target_dir}`);
             return Observable.bindNodeCallback(fs.ensureDir)(terragrunt_target_dir);

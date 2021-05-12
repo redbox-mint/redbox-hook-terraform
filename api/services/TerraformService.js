@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Services = void 0;
 const Rx_1 = require("rxjs/Rx");
 const services = require("../core/CoreService.js");
 const js_terraform_1 = require("js-terraform");
@@ -39,7 +40,7 @@ var Services;
             let rdmp = null;
             let tg_dir = null;
             if (options.action == "create") {
-                obs.push(RecordsService.getMeta(record.metadata.rdmpOid)
+                obs.push(Rx_1.Observable.of(RecordsService.getMeta(record.metadata.rdmpOid))
                     .flatMap((rdmpData) => {
                     rdmp = rdmpData;
                     sails.log.verbose(`Got RDMP data:`);
@@ -52,7 +53,7 @@ var Services;
                         rdmpTitle: rdmpData.metadata.title,
                         location: { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null }
                     });
-                    return RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData);
+                    return Rx_1.Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
                 })
                     .flatMap(() => {
                     return this.prepareTargetDir(oid, record, options, recType);
@@ -73,14 +74,14 @@ var Services;
                     const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid; });
                     workspaceEntry.location = location;
                     record.metadata.location = location;
-                    return RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp);
+                    return Rx_1.Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
                 })
                     .flatMap(() => {
                     return WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState);
                 })
                     .flatMap((wfStep) => {
                     RecordsService.updateWorkflowStep(record, wfStep);
-                    return RecordsService.updateMeta(null, oid, record, null, false, false);
+                    return Rx_1.Observable.of(RecordsService.updateMeta(null, oid, record, null, false, false));
                 })
                     .flatMap(() => {
                     sails.log.verbose(`Provision completed: ${tg_dir}`);
@@ -99,6 +100,7 @@ var Services;
                 const pathExistsNodeBind = Rx_1.Observable.bindNodeCallback(fs.pathExists);
                 return pathExistsNodeBind(templateDir)
                     .flatMap((pathExists) => {
+                    sails.log.debug(`PathExists is: ${pathExists}`);
                     if (pathExists) {
                         terragrunt_target_dir = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/${recType}-${oid}/`;
                         terragrunt_env_file = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/terragrunt.hcl`;
@@ -109,6 +111,7 @@ var Services;
                     return Rx_1.Observable.throw(new Error(`Template Path doesn't exist: ${templateDir}`));
                 })
                     .flatMap((pathExists) => {
+                    sails.log.debug(`PathExists is: ${pathExists}`);
                     if (!pathExists) {
                         sails.log.verbose(`${this.tf_log_header} Target doesn't exist, creating: ${terragrunt_target_dir}`);
                         return Rx_1.Observable.bindNodeCallback(fs.ensureDir)(terragrunt_target_dir);
