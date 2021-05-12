@@ -93,7 +93,7 @@ export module Services {
       let tg_dir = null;
       if (options.action == "create") {
         // associate the workspace in the DMP record: workspaces field
-        obs.push(Observable.of(RecordsService.getMeta(record.metadata.rdmpOid))
+        obs.push(Observable.from(RecordsService.getMeta(record.metadata.rdmpOid))
         .flatMap((rdmpData:any) => {
           rdmp = rdmpData;
           sails.log.verbose(`Got RDMP data:`);
@@ -107,7 +107,7 @@ export module Services {
             location: { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null}
           });
           // Update the DMP...
-          return Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
+          return Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
         })
         .flatMap(() => {
           return this.prepareTargetDir(oid, record, options, recType);
@@ -129,7 +129,7 @@ export module Services {
           const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid });
           workspaceEntry.location = location;
           record.metadata.location = location;
-          return Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
+          return Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
         })
         .flatMap(() => {
           // get the next step after provisioned
@@ -138,7 +138,7 @@ export module Services {
         .flatMap((wfStep) => {
           RecordsService.updateWorkflowStep(record, wfStep);
           // we update the metadata with the earlier output
-          return Observable.of(RecordsService.updateMeta(null, oid, record, null, false, false));
+          return Observable.from(RecordsService.updateMeta(null, oid, record, null, false, false));
         })
         .flatMap(() => {
           sails.log.verbose(`Provision completed: ${tg_dir}`);

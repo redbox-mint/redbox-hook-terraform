@@ -40,7 +40,7 @@ var Services;
             let rdmp = null;
             let tg_dir = null;
             if (options.action == "create") {
-                obs.push(Rx_1.Observable.of(RecordsService.getMeta(record.metadata.rdmpOid))
+                obs.push(Rx_1.Observable.from(RecordsService.getMeta(record.metadata.rdmpOid))
                     .flatMap((rdmpData) => {
                     rdmp = rdmpData;
                     sails.log.verbose(`Got RDMP data:`);
@@ -53,7 +53,7 @@ var Services;
                         rdmpTitle: rdmpData.metadata.title,
                         location: { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null }
                     });
-                    return Rx_1.Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
+                    return Rx_1.Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
                 })
                     .flatMap(() => {
                     return this.prepareTargetDir(oid, record, options, recType);
@@ -74,14 +74,14 @@ var Services;
                     const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid; });
                     workspaceEntry.location = location;
                     record.metadata.location = location;
-                    return Rx_1.Observable.of(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
+                    return Rx_1.Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
                 })
                     .flatMap(() => {
                     return WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState);
                 })
                     .flatMap((wfStep) => {
                     RecordsService.updateWorkflowStep(record, wfStep);
-                    return Rx_1.Observable.of(RecordsService.updateMeta(null, oid, record, null, false, false));
+                    return Rx_1.Observable.from(RecordsService.updateMeta(null, oid, record, null, false, false));
                 })
                     .flatMap(() => {
                     sails.log.verbose(`Provision completed: ${tg_dir}`);
