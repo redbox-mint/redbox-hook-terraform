@@ -122,8 +122,8 @@ export module Services {
         })
         .flatMap((output: any) => {
           sails.log.verbose(`${this.tf_log_header} Output received, saving.`);
-          // save the output in medata.output
-          record.metadata.output = output;
+          // save the output in metadata.output (as a string as terraform output can contain . keys)
+          record.metadata.output = JSON.stringify(output);
           const serviceName = sails.config.workspacetype[recType].service;
           const location = sails.services[serviceName].getLocation(oid, record, recType);
           const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid });
