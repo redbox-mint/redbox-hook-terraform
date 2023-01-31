@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Services = void 0;
 const Rx_1 = require("rxjs/Rx");
@@ -21,14 +30,20 @@ var Services;
             sails.log.info(`${this.tf_log_header} Bootstrapping...`);
             this.terragrunt = new js_terraform_1.Terragrunt();
             sails.log.info(`${this.tf_log_header} Checking if we can execute Terragrunt...`);
-            return Rx_1.Observable.from(this.terragrunt.applyAll(sails.config.terraform.terragrunt_base + sails.config.terraform.init_module_terragrunt, { silent: false, autoApprove: true }));
+            return Rx_1.Observable.from(this.terragrunt.applyAll(sails.config.terraform.terragrunt_base + sails.config.terraform.init_module_terragrunt, {
+                silent: false,
+                autoApprove: true
+            }));
         }
         prepareProvision(oid, record, options) {
             sails.log.verbose(`Preparing to provision: ${oid}`);
             sails.log.verbose(JSON.stringify(record));
             const recType = record.metaMetadata.type;
             if (options.action == "create") {
-                record.metadata.location = { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null };
+                record.metadata.location = {
+                    label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation),
+                    link: null
+                };
             }
             return Rx_1.Observable.of(record);
         }
@@ -40,9 +55,16 @@ var Services;
             let rdmp = null;
             let tg_dir = null;
             if (options.action == "create") {
-                obs.push(Rx_1.Observable.from(RecordsService.getMeta(record.metadata.rdmpOid))
-                    .flatMap((rdmpData) => {
-                    rdmp = rdmpData;
+                obs.push(Rx_1.Observable.of(this.provisionAsync(oid, record, options)));
+            }
+            return _.isEmpty(obs) ? Rx_1.Observable.of(record) : Rx_1.Observable.zip(...obs);
+        }
+        provisionAsync(oid, record, options) {
+            return __awaiter(this, void 0, void 0, function* () {
+                try {
+                    const recType = record.metaMetadata.type;
+                    let rdmpData = yield RecordsService.getMeta(record.metadata.rdmpOid);
+                    let rdmp = rdmpData;
                     sails.log.verbose(`Got RDMP data:`);
                     sails.log.verbose(JSON.stringify(rdmpData));
                     rdmpData.metadata.workspaces.push({
@@ -51,44 +73,40 @@ var Services;
                         description: record.metadata.description,
                         rmdpOid: record.metadata.rdmpOid,
                         rdmpTitle: rdmpData.metadata.title,
-                        location: { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null }
+                        location: {
+                            label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation),
+                            link: null
+                        }
                     });
-                    return Rx_1.Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
-                })
-                    .flatMap(() => {
-                    return this.prepareTargetDir(oid, record, options, recType);
-                })
-                    .flatMap((terragrunt_target_dir) => {
-                    tg_dir = terragrunt_target_dir;
-                    return this.applyTemplate(terragrunt_target_dir);
-                })
-                    .flatMap(() => {
+                    yield RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData);
+                    let terragrunt_target_dir = yield this.prepareTargetDir(oid, record, options, recType).toPromise();
+                    let tg_dir = terragrunt_target_dir;
+                    yield this.applyTemplate(terragrunt_target_dir);
                     sails.log.verbose(`${this.tf_log_header} Template applied, retrieving output...`);
-                    return this.terragrunt.output(tg_dir, { simple: false });
-                })
-                    .flatMap((output) => {
+                    let output = yield this.terragrunt.output(tg_dir, {
+                        simple: false
+                    });
                     sails.log.verbose(`${this.tf_log_header} Output received, saving.`);
-                    record.metadata.output = output;
+                    record.metadata.output = JSON.stringify(output);
                     const serviceName = sails.config.workspacetype[recType].service;
                     const location = sails.services[serviceName].getLocation(oid, record, recType);
-                    const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid; });
+                    const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => {
+                        return w.id == oid;
+                    });
                     workspaceEntry.location = location;
                     record.metadata.location = location;
-                    return Rx_1.Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
-                })
-                    .flatMap(() => {
-                    return WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState);
-                })
-                    .flatMap((wfStep) => {
+                    yield RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp);
+                    let wfStep = yield WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState).toPromise();
                     RecordsService.updateWorkflowStep(record, wfStep);
-                    return Rx_1.Observable.from(RecordsService.updateMeta(null, oid, record, null, false, false));
-                })
-                    .flatMap(() => {
+                    yield RecordsService.updateMeta(null, oid, record, null, false, false);
                     sails.log.verbose(`Provision completed: ${tg_dir}`);
-                    return Rx_1.Observable.of("");
-                }));
-            }
-            return _.isEmpty(obs) ? Rx_1.Observable.of(record) : Rx_1.Observable.zip(...obs);
+                }
+                catch (error) {
+                    sails.log.error("Error provisioning in terraform");
+                    sails.log.error(error);
+                }
+                return record;
+            });
         }
         prepareTargetDir(oid, record, options, recType) {
             let terragrunt_target_dir = null;
@@ -159,7 +177,10 @@ var Services;
         }
         applyTemplate(terragrunt_target_dir) {
             sails.log.verbose(`${this.tf_log_header} Applying configuration in: ${terragrunt_target_dir}`);
-            return this.terragrunt.applyAll(terragrunt_target_dir, { silent: false, autoApprove: true });
+            return this.terragrunt.applyAll(terragrunt_target_dir, {
+                silent: false,
+                autoApprove: true
+            });
         }
     }
     Services.TerraformService = TerraformService;

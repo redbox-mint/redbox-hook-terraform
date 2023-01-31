@@ -17,10 +17,17 @@
 // with this program; if not, write to the Free Software Foundation, Inc.,
 // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import { Observable } from 'rxjs/Rx';
+import {
+  Observable
+} from 'rxjs/Rx';
 import services = require('../core/CoreService.js');
-import { Sails } from "sails";
-import { Terraform, Terragrunt } from 'js-terraform';
+import {
+  Sails
+} from "sails";
+import {
+  Terraform,
+  Terragrunt
+} from 'js-terraform';
 import fs = require('fs-extra');
 declare var sails: Sails;
 declare var _;
@@ -43,11 +50,14 @@ export module Services {
     private tf_log_header = "Terraform Provisioner Service::";
     private terragrunt: Terragrunt;
 
-    public bootstrap(): Observable<any> {
+    public bootstrap(): Observable < any > {
       sails.log.info(`${this.tf_log_header} Bootstrapping...`);
       this.terragrunt = new Terragrunt();
       sails.log.info(`${this.tf_log_header} Checking if we can execute Terragrunt...`);
-      return Observable.from(this.terragrunt.applyAll(sails.config.terraform.terragrunt_base + sails.config.terraform.init_module_terragrunt, {silent:false, autoApprove:true}));
+      return Observable.from(this.terragrunt.applyAll(sails.config.terraform.terragrunt_base + sails.config.terraform.init_module_terragrunt, {
+        silent: false,
+        autoApprove: true
+      }));
 
     }
 
@@ -61,13 +71,16 @@ export module Services {
      * @param  options
      * @return
      */
-    public prepareProvision(oid: string, record:any, options:any) {
+    public prepareProvision(oid: string, record: any, options: any) {
       sails.log.verbose(`Preparing to provision: ${oid}`);
       sails.log.verbose(JSON.stringify(record));
       const recType = record.metaMetadata.type;
       if (options.action == "create") {
         // set the default location, we don't put this in the form, as it will clobber the existing value when editing
-        record.metadata.location = { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null };
+        record.metadata.location = {
+          label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation),
+          link: null
+        };
       }
 
       return Observable.of(record);
@@ -84,7 +97,7 @@ export module Services {
      * @param  options
      * @return void
      */
-    public provision(oid:string, record:any, options:any) {
+    public provision(oid: string, record: any, options: any) {
       sails.log.verbose(JSON.stringify(record));
       const recType = record.metaMetadata.type;
       sails.log.verbose(`${this.tf_log_header} Provisioning Workspace Type: ${recType}`);
@@ -93,64 +106,74 @@ export module Services {
       let tg_dir = null;
       if (options.action == "create") {
         // associate the workspace in the DMP record: workspaces field
-        obs.push(Observable.from(RecordsService.getMeta(record.metadata.rdmpOid))
-        .flatMap((rdmpData:any) => {
-          rdmp = rdmpData;
-          sails.log.verbose(`Got RDMP data:`);
-          sails.log.verbose(JSON.stringify(rdmpData));
-          rdmpData.metadata.workspaces.push({
-            id: oid,
-            title: record.metadata.title,
-            description: record.metadata.description,
-            rmdpOid: record.metadata.rdmpOid,
-            rdmpTitle: rdmpData.metadata.title,
-            location: { label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation), link: null}
-          });
-          // Update the DMP...
-          return Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData));
-        })
-        .flatMap(() => {
-          return this.prepareTargetDir(oid, record, options, recType);
-        })
-        .flatMap((terragrunt_target_dir:string) => {
-          tg_dir = terragrunt_target_dir;
-          return this.applyTemplate(terragrunt_target_dir);
-        })
-        .flatMap(() => {
-          sails.log.verbose(`${this.tf_log_header} Template applied, retrieving output...`);
-          return this.terragrunt.output(tg_dir, {simple: false});
-        })
-        .flatMap((output: any) => {
-          sails.log.verbose(`${this.tf_log_header} Output received, saving.`);
-          // save the output in metadata.output (as a string as terraform output can contain . keys)
-          record.metadata.output = JSON.stringify(output);
-          const serviceName = sails.config.workspacetype[recType].service;
-          const location = sails.services[serviceName].getLocation(oid, record, recType);
-          const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => { return w.id == oid });
-          workspaceEntry.location = location;
-          record.metadata.location = location;
-          return Observable.from(RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp));
-        })
-        .flatMap(() => {
-          // get the next step after provisioned
-          return WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState);
-        })
-        .flatMap((wfStep) => {
-          RecordsService.updateWorkflowStep(record, wfStep);
-          // we update the metadata with the earlier output
-          return Observable.from(RecordsService.updateMeta(null, oid, record, null, false, false));
-        })
-        .flatMap(() => {
-          sails.log.verbose(`Provision completed: ${tg_dir}`);
-          return Observable.of("");
-        })
-        );
+        obs.push(Observable.of(this.provisionAsync(oid, record, options)));
       }
       return _.isEmpty(obs) ? Observable.of(record) : Observable.zip(...obs);
     }
 
+    private async provisionAsync(oid: string, record: any, options: any) {
+      try {
+        const recType = record.metaMetadata.type;
+        let rdmpData = await RecordsService.getMeta(record.metadata.rdmpOid);
+        let rdmp = rdmpData;
+        sails.log.verbose(`Got RDMP data:`);
+        sails.log.verbose(JSON.stringify(rdmpData));
+        rdmpData.metadata.workspaces.push({
+          id: oid,
+          title: record.metadata.title,
+          description: record.metadata.description,
+          rmdpOid: record.metadata.rdmpOid,
+          rdmpTitle: rdmpData.metadata.title,
+          location: {
+            label: TranslationService.t(sails.config.workspacetype[recType].defaultLocation),
+            link: null
+          }
+        });
+        // Update the DMP...
+        await RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmpData);
 
-    private prepareTargetDir(oid: string, record:any, options:any, recType:string): Observable<string> {
+        let terragrunt_target_dir = await this.prepareTargetDir(oid, record, options, recType).toPromise();
+
+        let tg_dir = terragrunt_target_dir;
+        await this.applyTemplate(terragrunt_target_dir);
+
+
+        sails.log.verbose(`${this.tf_log_header} Template applied, retrieving output...`);
+        let output = await this.terragrunt.output(tg_dir, {
+          simple: false
+        });
+
+        sails.log.verbose(`${this.tf_log_header} Output received, saving.`);
+        // save the output in metadata.output (as a string as terraform output can contain . keys)
+        record.metadata.output = JSON.stringify(output);
+        const serviceName = sails.config.workspacetype[recType].service;
+        const location = sails.services[serviceName].getLocation(oid, record, recType);
+        const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => {
+          return w.id == oid
+        });
+        workspaceEntry.location = location;
+        record.metadata.location = location;
+        await RecordsService.updateMeta(null, record.metadata.rdmpOid, rdmp);
+
+        // get the next step after provisioned
+        let wfStep = await WorkflowStepsService.get(recType, sails.config.workspacetype[recType].postProvisionState).toPromise();
+
+
+        RecordsService.updateWorkflowStep(record, wfStep);
+        // we update the metadata with the earlier output
+        await RecordsService.updateMeta(null, oid, record, null, false, false);
+
+        sails.log.verbose(`Provision completed: ${tg_dir}`);
+      } catch (error) {
+        sails.log.error("Error provisioning in terraform")
+        sails.log.error(error);
+      }
+      return record;
+
+    }
+
+
+    private prepareTargetDir(oid: string, record: any, options: any, recType: string): Observable < string > {
       let terragrunt_target_dir = null;
       let terragrunt_env_file = null;
       if (options.action == "create") {
@@ -161,53 +184,53 @@ export module Services {
         sails.log.verbose(`${this.tf_log_header} On create, applying using template from: ${templateDir}`);
         const pathExistsNodeBind = Observable.bindNodeCallback(fs.pathExists);
         return pathExistsNodeBind(templateDir)
-        .flatMap((pathExists) => {
-          sails.log.debug(`PathExists is: ${pathExists}`)
-          if (pathExists) {
-            terragrunt_target_dir = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/${recType}-${oid}/`;
-            terragrunt_env_file = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/terragrunt.hcl`;
-            sails.log.verbose(`${this.tf_log_header} Using target directory: ${terragrunt_target_dir}`);
-            return pathExistsNodeBind(terragrunt_target_dir);
-          }
-          sails.log.error(`${this.tf_log_header} Template Path doesn't exist: ${templateDir}`);
-          return Observable.throw(new Error(`Template Path doesn't exist: ${templateDir}`))
-        })
-        .flatMap((pathExists) => {
-          sails.log.debug(`PathExists is: ${pathExists}`)
-          if (!pathExists) {
-            sails.log.verbose(`${this.tf_log_header} Target doesn't exist, creating: ${terragrunt_target_dir}`);
-            return Observable.bindNodeCallback(fs.ensureDir)(terragrunt_target_dir);
-          }
-          return Observable.of("");
-        })
-        .flatMap(() => {
-          sails.log.verbose(`${this.tf_log_header} Copying ${templateDir} into ${terragrunt_target_dir}`);
-          return Observable.bindNodeCallback(fs.copy)(templateDir, terragrunt_target_dir);
-        })
-        .flatMap(() => {
-          sails.log.verbose(`${this.tf_log_header} Copying environment config ${envConfigFile} into ${terragrunt_env_file}`);
-          return Observable.bindNodeCallback(fs.copy)(envConfigFile, terragrunt_env_file);
-        })
-        .flatMap(() => {
-          sails.log.verbose(`${this.tf_log_header} Copied template: ${templateDir} into ${terragrunt_target_dir}`);
-          const serviceName = sails.config.workspacetype[recType].service;
-          sails.log.verbose(`${this.tf_log_header} '${recType}' will use service: ${serviceName}`);
-          const targetConfigFile = `${terragrunt_target_dir}terragrunt.hcl`;
-          // modify the terragrunt config using the export map...
-          const appendData = this.inputMapToHcl(sails.services[serviceName].getInputMap(oid, record));
-          return Observable.bindNodeCallback(fs.appendFile)(targetConfigFile, appendData);
-        })
-        .flatMap(() => {
-          sails.log.verbose(`${this.tf_log_header} Appended config in: ${terragrunt_target_dir}terragrunt.hcl`);
-          return Observable.of(terragrunt_target_dir);
-        });
+          .flatMap((pathExists) => {
+            sails.log.debug(`PathExists is: ${pathExists}`)
+            if (pathExists) {
+              terragrunt_target_dir = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/${recType}-${oid}/`;
+              terragrunt_env_file = `${sails.config.terraform.terragrunt_base}${sails.config.terraform.environment}/terragrunt.hcl`;
+              sails.log.verbose(`${this.tf_log_header} Using target directory: ${terragrunt_target_dir}`);
+              return pathExistsNodeBind(terragrunt_target_dir);
+            }
+            sails.log.error(`${this.tf_log_header} Template Path doesn't exist: ${templateDir}`);
+            return Observable.throw(new Error(`Template Path doesn't exist: ${templateDir}`))
+          })
+          .flatMap((pathExists) => {
+            sails.log.debug(`PathExists is: ${pathExists}`)
+            if (!pathExists) {
+              sails.log.verbose(`${this.tf_log_header} Target doesn't exist, creating: ${terragrunt_target_dir}`);
+              return Observable.bindNodeCallback(fs.ensureDir)(terragrunt_target_dir);
+            }
+            return Observable.of("");
+          })
+          .flatMap(() => {
+            sails.log.verbose(`${this.tf_log_header} Copying ${templateDir} into ${terragrunt_target_dir}`);
+            return Observable.bindNodeCallback(fs.copy)(templateDir, terragrunt_target_dir);
+          })
+          .flatMap(() => {
+            sails.log.verbose(`${this.tf_log_header} Copying environment config ${envConfigFile} into ${terragrunt_env_file}`);
+            return Observable.bindNodeCallback(fs.copy)(envConfigFile, terragrunt_env_file);
+          })
+          .flatMap(() => {
+            sails.log.verbose(`${this.tf_log_header} Copied template: ${templateDir} into ${terragrunt_target_dir}`);
+            const serviceName = sails.config.workspacetype[recType].service;
+            sails.log.verbose(`${this.tf_log_header} '${recType}' will use service: ${serviceName}`);
+            const targetConfigFile = `${terragrunt_target_dir}terragrunt.hcl`;
+            // modify the terragrunt config using the export map...
+            const appendData = this.inputMapToHcl(sails.services[serviceName].getInputMap(oid, record));
+            return Observable.bindNodeCallback(fs.appendFile)(targetConfigFile, appendData);
+          })
+          .flatMap(() => {
+            sails.log.verbose(`${this.tf_log_header} Appended config in: ${terragrunt_target_dir}terragrunt.hcl`);
+            return Observable.of(terragrunt_target_dir);
+          });
       } else {
         sails.log.verbose(`${this.tf_log_header} Unsupported action, yet.`);
         return Observable.of(terragrunt_target_dir);
       }
     }
 
-    private inputMapToHcl(jsonData:any) {
+    private inputMapToHcl(jsonData: any) {
       let hcl = `inputs = {`;
       _.each(jsonData, (v, k) => {
         if (_.isString(v)) {
@@ -222,7 +245,10 @@ export module Services {
 
     private applyTemplate(terragrunt_target_dir: string) {
       sails.log.verbose(`${this.tf_log_header} Applying configuration in: ${terragrunt_target_dir}`);
-      return this.terragrunt.applyAll(terragrunt_target_dir, {silent: false, autoApprove: true});
+      return this.terragrunt.applyAll(terragrunt_target_dir, {
+        silent: false,
+        autoApprove: true
+      });
     }
 
   }
