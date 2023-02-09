@@ -4,3 +4,4 @@ sailsWorkingDir
 .terragrunt-cache
 tmp
 live/dev
+node_modules

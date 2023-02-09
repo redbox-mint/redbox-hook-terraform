@@ -11,12 +11,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Services = void 0;
 const Rx_1 = require("rxjs/Rx");
-const services = require("../core/CoreService.js");
+const redbox_core_types_1 = require("@researchdatabox/redbox-core-types");
 const js_terraform_1 = require("js-terraform");
 const fs = require("fs-extra");
 var Services;
 (function (Services) {
-    class TerraformService extends services.Services.Core.Service {
+    class TerraformService extends redbox_core_types_1.Services.Core.Service {
         constructor() {
             super(...arguments);
             this._exportedMethods = [
@@ -89,7 +89,8 @@ var Services;
                     sails.log.verbose(`${this.tf_log_header} Output received, saving.`);
                     record.metadata.output = JSON.stringify(output);
                     const serviceName = sails.config.workspacetype[recType].service;
-                    const location = sails.services[serviceName].getLocation(oid, record, recType);
+                    let helperService = sails.services[serviceName];
+                    const location = helperService.getLocation(oid, record, recType, output);
                     const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => {
                         return w.id == oid;
                     });
@@ -149,7 +150,8 @@ var Services;
                     const serviceName = sails.config.workspacetype[recType].service;
                     sails.log.verbose(`${this.tf_log_header} '${recType}' will use service: ${serviceName}`);
                     const targetConfigFile = `${terragrunt_target_dir}terragrunt.hcl`;
-                    const appendData = this.inputMapToHcl(sails.services[serviceName].getInputMap(oid, record));
+                    let helperService = sails.services[serviceName];
+                    const appendData = this.inputMapToHcl(helperService.getInputMap(oid, record, recType));
                     return Rx_1.Observable.bindNodeCallback(fs.appendFile)(targetConfigFile, appendData);
                 })
                     .flatMap(() => {

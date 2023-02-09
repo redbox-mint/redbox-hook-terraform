@@ -1,7 +1,7 @@
 module.exports.terraform = {
   environment: "dev",
   install_base_url: "https://releases.hashicorp.com/terraform/",
-  version: "0.12.9",
+  version: "1.3.7",
   arch: "linux_amd64",
   tmp: "/tmp/",
   path: "/bin/terraform",

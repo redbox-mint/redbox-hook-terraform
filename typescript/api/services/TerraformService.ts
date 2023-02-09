@@ -20,7 +20,7 @@
 import {
   Observable
 } from 'rxjs/Rx';
-import services = require('../core/CoreService.js');
+import { Services as services} from '@researchdatabox/redbox-core-types';
 import {
   Sails
 } from "sails";
@@ -29,6 +29,7 @@ import {
   Terragrunt
 } from 'js-terraform';
 import fs = require('fs-extra');
+import { TerraformProvisioningHelperService } from './TerraformProvisioningHelperService.js';
 declare var sails: Sails;
 declare var _;
 declare var RecordsService, TranslationService, WorkflowStepsService;
@@ -40,7 +41,7 @@ export module Services {
    * Author: <a href='https://github.com/shilob' target='_blank'>Shilo Banihit</a>
    *
    */
-  export class TerraformService extends services.Services.Core.Service {
+  export class TerraformService extends services.Core.Service {
     protected _exportedMethods: any = [
       'bootstrap',
       'provision',
@@ -146,8 +147,9 @@ export module Services {
         sails.log.verbose(`${this.tf_log_header} Output received, saving.`);
         // save the output in metadata.output (as a string as terraform output can contain . keys)
         record.metadata.output = JSON.stringify(output);
-        const serviceName = sails.config.workspacetype[recType].service;
-        const location = sails.services[serviceName].getLocation(oid, record, recType);
+        const serviceName = _.get(sails.config.workspacetype[recType],'service','ConfigurableTerraformProvisioningHelperService');
+        let helperService: TerraformProvisioningHelperService = sails.services[serviceName];
+        const location = helperService.getLocation(oid, record, recType, output);
         const workspaceEntry = _.find(rdmp.metadata.workspaces, (w) => {
           return w.id == oid
         });
@@ -213,11 +215,12 @@ export module Services {
           })
           .flatMap(() => {
             sails.log.verbose(`${this.tf_log_header} Copied template: ${templateDir} into ${terragrunt_target_dir}`);
-            const serviceName = sails.config.workspacetype[recType].service;
+            const serviceName = _.get(sails.config.workspacetype[recType],'service','ConfigurableTerraformProvisioningHelperService');
             sails.log.verbose(`${this.tf_log_header} '${recType}' will use service: ${serviceName}`);
             const targetConfigFile = `${terragrunt_target_dir}terragrunt.hcl`;
             // modify the terragrunt config using the export map...
-            const appendData = this.inputMapToHcl(sails.services[serviceName].getInputMap(oid, record));
+            let helperService: TerraformProvisioningHelperService = sails.services[serviceName];
+            const appendData = this.inputMapToHcl(helperService.getInputMap(oid, record,recType));
             return Observable.bindNodeCallback(fs.appendFile)(targetConfigFile, appendData);
           })
           .flatMap(() => {
